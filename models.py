@@ -10,6 +10,7 @@ import numpy as np
 import torch.optim as optim
 import torch.nn.init as init
 from termcolor import colored
+from timeit import default_timer as timer
 import torch.utils.checkpoint as checkpoint
 
 import torch
@@ -93,6 +94,7 @@ def prepare_optimizer(model, load, training_configuration, file_name):
 
 def save_checkpoint(model, optimizer, scheduler, file_name, model_configuration, training_configuration, tokens_processed, total_time):
     file_name += '.pt'
+    time = timer()
     print('saving the model to', file_name)
     torch.save({'model' : model.state_dict(), 
                 'optimizer': optimizer.state_dict(),
@@ -101,6 +103,7 @@ def save_checkpoint(model, optimizer, scheduler, file_name, model_configuration,
                 'training_configuration': training_configuration,
                 'tokens_processed': tokens_processed,
                 'total_time': total_time}, file_name)
+    print('finished saving the model (took {:.5f} seconds)'.format(timer() - time))
 
 
 def initialize_weights(module):

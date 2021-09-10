@@ -30,15 +30,18 @@ configuration = {
     'load': False,
 
     'print_iteration': 20, # 20
-    'save_iteration': 200
+    'save_iteration': 2000
 }
 if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
     configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
-    configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model') # 'model'
 else:
     configuration['train_data'] = '/share/project/arturs/datasets/wiki/wiki.train.tokens'
     configuration['validation_data'] = '/share/project/arturs/datasets/wiki/wiki.valid.tokens'
+
+if 'AMLT_OUTPUT_DIR' in os.environ:
+    configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
+else:
     configuration['file_name'] = 'model'
 
 model_configuration = {
@@ -220,7 +223,7 @@ def train():
                     perplexity_file.write('{:.5f}\t{:.5f}\n'.format(tokens_processed / 10 ** 6, perplexity))
                 time = timer() - experiment_start_time
                 models.save_checkpoint(model, optimizer, scheduler, configuration['file_name'], model_configuration, training_configuration, tokens_processed, total_time + time)
-                if time / (60 * 60) > 3.25:
+                if time / (60 * 60) > 10 ** 10:
                     done = True
                     break
 
