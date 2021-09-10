@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-n_experts = 16
+n_experts = 64
 devices_ids = [i for i in range(100)]
 devices = [torch.device(id) for id in devices_ids]
 

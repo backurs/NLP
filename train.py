@@ -29,9 +29,6 @@ import torch.nn.functional as F
 configuration = {
     'load': False,
 
-    #'train_data': '/share/project/arturs/datasets/wiki/wiki.train.tokens',
-    #'validation_data': '/share/project/arturs/datasets/wiki/wiki.valid.tokens',
-
     'file_name': 'model',
 
     'print_iteration': 20, # 20
@@ -53,14 +50,14 @@ model_configuration = {
     #'model_class': models.Model,
     #'model_class': models.Model_Experts_Standard,
     'vocabulary_size': 32000, # 32000
-    'n_tokens': 64, # 64
+    'n_tokens': 64 * 8, # 64
     'number_of_layers': 12, # 12
-    'dimension': 768, # 768
+    'dimension': 1024, # 768
     'dropout': 0.0
 }
 
 training_configuration = {
-    'batch_size': 64, # 64
+    'batch_size': 64 * 4, # 64
     'number_of_splits': 1, # 1
     'weight_decay': 0.01,
     'learning_rate': 1e-3, # 1e-3
