@@ -29,17 +29,17 @@ import torch.nn.functional as F
 configuration = {
     'load': False,
 
-    'file_name': 'model',
-
     'print_iteration': 20, # 20
-    'save_iteration': 1000
+    'save_iteration': 200
 }
 if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
     configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
+    configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model') # 'model'
 else:
     configuration['train_data'] = '/share/project/arturs/datasets/wiki/wiki.train.tokens'
     configuration['validation_data'] = '/share/project/arturs/datasets/wiki/wiki.valid.tokens'
+    configuration['file_name'] = 'model'
 
 model_configuration = {
     'model_class': models.Model_Experts_Parallel_Compute_Loss,
@@ -50,8 +50,8 @@ model_configuration = {
     #'model_class': models.Model,
     #'model_class': models.Model_Experts_Standard,
     'vocabulary_size': 32000, # 32000
-    'n_tokens': 64 * 8, # 64
-    'number_of_layers': 12, # 12
+    'n_tokens': 64 * 2, # 64
+    'number_of_layers': 36, # 12
     'dimension': 1024, # 768
     'dropout': 0.0
 }
