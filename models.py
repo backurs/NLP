@@ -167,7 +167,7 @@ def test(model, encoded_validation_text, n_tokens, test_length, tokens_processed
 
     perplexity = math.exp(- perplexity / test_length) # F.log_softmax uses the natural logarithm, so we use math.exp(x), which is the same as math.e ** x
     accuracy = 100 * n_correct / test_length
-    print(f'perplexity: {perplexity}, accuracy: {accuracy}')
+    print(f'perplexity: {perplexity:.5f}, accuracy: {accuracy:.5f}')
 
     return perplexity, accuracy
 
