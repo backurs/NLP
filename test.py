@@ -43,8 +43,8 @@ model_configuration = {
 }
 
 
-def compute_perplexity(model, configuration, model_configuration, tokenizer, tokens_processed):
-    print('computing perplexity')
+def test(model, configuration, model_configuration, tokenizer, tokens_processed):
+    print('testing the model')
     model.to(models.devices[0])
 
     pprint.pprint({'configuration' : configuration, 'model_configuration' : model_configuration})
@@ -69,7 +69,7 @@ def compute_perplexity(model, configuration, model_configuration, tokenizer, tok
         test_length = 1000
 
     time = timer()
-    models.perplexity(model, encoded_validation_text, model_configuration['n_tokens'], test_length, tokens_processed)
+    models.test(model, encoded_validation_text, model_configuration['n_tokens'], test_length, tokens_processed)
     print('took {:.5f} seconds'.format(timer() - time))
 
 if __name__ == '__main__':
@@ -83,4 +83,4 @@ if __name__ == '__main__':
         tokens_processed = 0
 
     print('{:.5f} billion tokens processed'.format(tokens_processed / 10 ** 9))
-    compute_perplexity(model, configuration, model_configuration, tokenizer, tokens_processed)
+    test(model, configuration, model_configuration, tokenizer, tokens_processed)

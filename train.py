@@ -30,7 +30,7 @@ configuration = {
     'load': False,
 
     'print_iteration': 20, # 20
-    'save_iteration': 2000
+    'save_iteration': 200
 }
 if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
@@ -53,9 +53,9 @@ model_configuration = {
     #'model_class': models.Model,
     #'model_class': models.Model_Experts_Standard,
     'vocabulary_size': 32000, # 32000
-    'n_tokens': 64 * 2, # 64
-    'number_of_layers': 36, # 12
-    'dimension': 1024, # 768
+    'n_tokens': 64 * 2, # 64 * 2, # 64
+    'number_of_layers': 24, # 36, # 12
+    'dimension': 768, # 1024, # 768
     'dropout': 0.0
 }
 
@@ -201,11 +201,11 @@ def train():
                 ids_per_print = configuration['print_iteration'] * ids_per_batch
 
                 print('\n[{}, {}]'.format(epoch + 1, iteration + 1), flush=True)
-                text = 'accuracy: {}/{} = '.format(running_accuracy, ids_per_print)
-                text += models.color('{:.5f} %'.format(100 * running_accuracy / ids_per_print), 'cyan')
-                text += ', loss per token: {:.5f}'.format(running_loss / ids_per_print)
+                text = f'accuracy: {running_accuracy}/{ids_per_print} = '
+                text += models.color(f'{100 * running_accuracy / ids_per_print:.5f} %', 'cyan')
+                text += f', loss per token: {running_loss / ids_per_print:.5f}'
                 print(text)
-                memory = ['{:.5f} GB'.format(torch.cuda.max_memory_allocated(i) / 2 ** (10 * 3)) for i in range(torch.cuda.device_count())]
+                memory = [f'{torch.cuda.max_memory_allocated(i) / 2 ** (10 * 3):.5f} GB' for i in range(torch.cuda.device_count())]
                 memory = ', '.join(memory)
                 if torch.cuda.device_count() >= 2:
                     memory = '(' + memory + ')'
@@ -218,7 +218,7 @@ def train():
                 running_accuracy = 0
             if (iteration + 1) % configuration['save_iteration'] == 0:
                 print_accuracy_plot(accuracy_file_name)
-                perplexity = models.perplexity(model, encoded_validation_text, model_configuration['n_tokens'], 1000, tokens_processed)
+                perplexity, _ = models.test(model, encoded_validation_text, model_configuration['n_tokens'], 1000, tokens_processed)
                 with open(perplexity_file_name, 'a') as perplexity_file:
                     perplexity_file.write('{:.5f}\t{:.5f}\n'.format(tokens_processed / 10 ** 6, perplexity))
                 time = timer() - experiment_start_time

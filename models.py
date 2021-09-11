@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-n_experts = 64
+n_experts = 8 # 64
 devices_ids = [i for i in range(100)]
 devices = [torch.device(id) for id in devices_ids]
 
@@ -141,37 +141,35 @@ def prepare_model(load, file_name='', model_configuration=None, model_class=None
     return model, model_configuration, training_configuration, transformers.BertTokenizer.from_pretrained('bert-base-uncased')
 
 
-def perplexity(model, encoded_validation_text, n_tokens, test_length, tokens_processed):
-    print('measuring perplexity')
+def test(model, encoded_validation_text, n_tokens, test_length, tokens_processed):
+    print('measuring perplexity and accuracy')
 
     prompt = encoded_validation_text[0 : n_tokens].to(devices[0])
-    perplexity = 0
+    perplexity = 0.0
+    n_correct = 0
 
     model.eval()
     with torch.no_grad():
         for position in range(test_length):
-            prediction = model(prompt.unsqueeze(0))[0, -1]
+            prediction, outputs_ids = model(prompt.unsqueeze(0))
 
-            real_token_id = encoded_validation_text[len(prompt) + position].item()
-            perplexity += prediction[real_token_id].item()
+            correct_token_id = encoded_validation_text[len(prompt) + position].item()
+            perplexity += prediction[0, -1, correct_token_id].item()
+
+            if outputs_ids[0, -1].item() == correct_token_id:
+                n_correct += 1
 
             prompt = prompt.roll(-1)
-            prompt[-1] = real_token_id
+            prompt[-1] = correct_token_id
 
             if (position + 1) % 100 == 0:
-                print('{}, {:.5f} billion tokens, {} / {} = {:.1f} % done, perplexity: {:.2f}'.format(
-                        directory(),
-                        tokens_processed / 10 ** 9,
-                        position + 1,
-                        test_length,
-                        100 * (position + 1) / test_length,
-                        math.exp(- perplexity / (position + 1))
-                    ))
+                print(f'{directory()}, {tokens_processed / 10 ** 9:.5f} billion tokens, {position + 1} / {test_length} = {100 * (position + 1) / test_length:.1f} % done, perplexity: {math.exp(- perplexity / (position + 1)):.2f}, accuracy: {n_correct}/{position + 1} = {100 * n_correct / (position + 1):.2f} %')
 
     perplexity = math.exp(- perplexity / test_length) # F.log_softmax uses the natural logarithm, so we use math.exp(x), which is the same as math.e ** x
-    print('perplexity:', perplexity)
+    accuracy = 100 * n_correct / test_length
+    print(f'perplexity: {perplexity}, accuracy: {accuracy}')
 
-    return perplexity
+    return perplexity, accuracy
 
 
 
@@ -407,7 +405,7 @@ class Compute_Loss(nn.Module):
     def forward(self, x, labels=None):
         x = F.log_softmax(self.linear(x), dim=-1)
         if labels == None:
-            return x
+            return x, x.argmax(dim=-1)
         labels_loss = F.one_hot(labels, self.vocabulary_size).float()
         loss = - (x * labels_loss).sum(dim=0)
         return loss, x.argmax(dim=-1)
