@@ -8,21 +8,14 @@ import models
 
 import os
 import sys
-import math
 import torch
 import pprint
 import random
-import logging
-import pathlib
 import argparse
-import collections
-import transformers
 
 import numpy as np
 import torch.nn as nn
 import plotext as plt
-import torch.optim as optim
-from termcolor import colored
 import torch.nn.functional as F
 
 
@@ -30,7 +23,7 @@ configuration = {
     'load': False,
 
     'print_iteration': 20, # 20
-    'save_iteration': 200
+    'save_iteration': 10000
 }
 if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
@@ -55,7 +48,7 @@ model_configuration = {
     'vocabulary_size': 32000, # 32000
     'n_tokens': 64 * 2, # 64 * 2, # 64
     'number_of_layers': 24, # 36, # 12
-    'dimension': 768, # 1024, # 768
+    'dimension': 27 * 64, # 768
     'dropout': 0.0
 }
 
@@ -129,7 +122,7 @@ def train():
     print('loading the training data')
     time = timer()
     encoded_text = models.load_dataset(configuration['train_data'], tokenizer)
-    print('finished loading the training data (took {:.5f} seconds)'.format(timer() - time))
+    print(f'finished loading the training data (took {timer() - time:.5f} seconds)')
 
     if 'validation_data' in configuration:
         encoded_validation_text = models.load_dataset(configuration['validation_data'], tokenizer)
@@ -212,7 +205,7 @@ def train():
                 total_days = (total_time + timer() - experiment_start_time) / (60 * 60 * 24)
                 print('time for the last batch: {:.5f}, memory: {}, lr: {:.7f}, tokens: {:,}, total time: {:.6f} days'.format(timer() - start_time, memory, scheduler.get_last_lr()[0], tokens_processed, total_days))
                 with open(accuracy_file_name, 'a') as accuracy_file:
-                    accuracy_file.write('{:.5f}\t{:.5f}\n'.format(tokens_processed / 10 ** 6, running_accuracy / ids_per_print))
+                    accuracy_file.write(f'{tokens_processed / 10 ** 6:.5f}\t{running_accuracy / ids_per_print:.5f}\n')
                 print_input_output(labels[0], outputs_ids[0], tokenizer)
                 running_loss = 0.0
                 running_accuracy = 0

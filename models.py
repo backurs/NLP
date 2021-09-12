@@ -3,21 +3,17 @@ import sys
 import math
 import random
 import pickle
-import pathlib
 import transformers
 
-import numpy as np
 import torch.optim as optim
-import torch.nn.init as init
 from termcolor import colored
 from timeit import default_timer as timer
-import torch.utils.checkpoint as checkpoint
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-n_experts = 8 # 64
+n_experts = 16 # 64
 devices_ids = [i for i in range(100)]
 devices = [torch.device(id) for id in devices_ids]
 
@@ -299,10 +295,9 @@ class Expert(nn.Module):
 class Layer_Experts(nn.Module):
     def __init__(self, dimension, n_tokens):
         super().__init__()
-        self.n_experts = 2
+        self.n_experts = torch.cuda.device_count()
 
         self.weights = nn.Parameter(torch.zeros(n_tokens).unsqueeze(0).unsqueeze(0))
-        self.register_buffer('scale', torch.FloatTensor([math.sqrt(1 / (i + 1)) for i in range(n_tokens)]).unsqueeze(-1).unsqueeze(0))
         self.norm = nn.LayerNorm(dimension)
 
         self.experts = nn.ModuleList([Expert(dimension) for i in range(self.n_experts)])
@@ -310,10 +305,9 @@ class Layer_Experts(nn.Module):
     def forward(self, x):
         n_tokens = x.shape[1]
         x_1 = x.transpose(-2, -1)
-        # the next line implements convolution using fft
         x_1 = torch.fft.ifft(torch.fft.fft(x_1, n=2*n_tokens) * torch.fft.fft(self.weights, n=2*n_tokens)).real[..., :n_tokens]
         x_1 = x_1.transpose(-2, -1)
-        x_1 = self.norm(x + x_1 * self.scale)
+        x_1 = x + self.norm(x_1)
 
         inputs = torch.chunk(x_1, chunks=self.n_experts, dim=1)
         outputs = [self.experts[i](inputs[i]) for i in range(self.n_experts)]
@@ -353,14 +347,13 @@ class Mixing(nn.Module):
         super().__init__()
         self.n_tokens = n_tokens
         self.weights = nn.Parameter(torch.zeros(self.n_tokens).unsqueeze(0).unsqueeze(0))
-        self.register_buffer('scale', torch.FloatTensor([math.sqrt(1 / (i + 1)) for i in range(self.n_tokens)]).unsqueeze(-1).unsqueeze(0))
         self.norm = nn.LayerNorm(dimension)
 
     def forward(self, x):
         x_1 = x.transpose(-2, -1)
         x_1 = torch.fft.ifft(torch.fft.fft(x_1, n=2*self.n_tokens) * torch.fft.fft(self.weights, n=2*self.n_tokens)).real[..., :self.n_tokens]
         x_1 = x_1.transpose(-2, -1)
-        x_1 = self.norm(x + x_1 * self.scale)
+        x_1 = x + self.norm(x_1)
         return x_1
 
 
@@ -383,19 +376,6 @@ class Layer_Experts_Parallel(nn.Module):
         x = torch.cat(outputs, dim=1)
 
         return x
-
-class Model_Experts_Parallel(nn.Module):
-    def __init__(self, vocabulary_size, n_layers, n_tokens, dimension, dropout):
-        super().__init__()
-        self.embedding = nn.Embedding(vocabulary_size, dimension).to(devices[0])
-        self.layers = nn.ModuleList([Layer_Experts_Parallel(dimension, n_tokens) for _ in range(n_layers)])
-        self.linear = nn.Linear(dimension, vocabulary_size).to(devices[0])
-
-    def forward(self, x):
-        x = self.embedding(x)
-        for layer in self.layers:
-            x = layer(x)
-        return F.log_softmax(self.linear(x), dim=-1)
 
 class Compute_Loss(nn.Module):
     def __init__(self, vocabulary_size, dimension):
@@ -426,6 +406,19 @@ class Model_Experts_Parallel_Compute_Loss(nn.Module):
             return self.loss(x)
         loss, outputs_ids = self.loss(x, labels)
         return loss.sum(), outputs_ids
+
+class Model_Experts_Parallel(nn.Module):
+    def __init__(self, vocabulary_size, n_layers, n_tokens, dimension, dropout):
+        super().__init__()
+        self.embedding = nn.Embedding(vocabulary_size, dimension).to(devices[0])
+        self.layers = nn.ModuleList([Layer_Experts_Parallel(dimension, n_tokens) for _ in range(n_layers)])
+        self.linear = nn.Linear(dimension, vocabulary_size).to(devices[0])
+
+    def forward(self, x):
+        x = self.embedding(x)
+        for layer in self.layers:
+            x = layer(x)
+        return F.log_softmax(self.linear(x), dim=-1)
 
 
 
