@@ -23,7 +23,7 @@ configuration = {
     'load': False,
 
     'print_iteration': 20, # 20
-    'save_iteration': 10000
+    'save_iteration': 3000
 }
 if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
