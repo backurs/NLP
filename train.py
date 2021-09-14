@@ -29,8 +29,8 @@ if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
     configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
 else:
-    configuration['train_data'] = '/home/abackurs/data/wikitext-103/wiki.train.tokens'
-    configuration['validation_data'] = '/home/abackurs/data/wikitext-103/wiki.valid.tokens'
+    configuration['train_data'] = '/workspace/data/wikitext-103/wiki.train.tokens'
+    configuration['validation_data'] = '/workspace/data/wikitext-103/wiki.valid.tokens'
 
 if 'AMLT_OUTPUT_DIR' in os.environ:
     configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
