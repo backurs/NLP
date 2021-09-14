@@ -29,8 +29,8 @@ if 'AMLT_DATA_DIR' in os.environ:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
     configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
 else:
-    configuration['train_data'] = '/share/project/arturs/datasets/wiki/wiki.train.tokens'
-    configuration['validation_data'] = '/share/project/arturs/datasets/wiki/wiki.valid.tokens'
+    configuration['train_data'] = '/home/abackurs/data/wikitext-103/wiki.train.tokens'
+    configuration['validation_data'] = '/home/abackurs/data/wikitext-103/wiki.valid.tokens'
 
 if 'AMLT_OUTPUT_DIR' in os.environ:
     configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
@@ -59,7 +59,7 @@ training_configuration = {
     'learning_rate': 1e-3, # 1e-3
     'num_warmup_steps': 100 # 100
 }
-tokens_for_experiment = 10 ** 9
+tokens_for_experiment = 10 ** 10
 training_configuration['num_training_steps'] = tokens_for_experiment // (model_configuration['n_tokens'] * training_configuration['batch_size'])
 # the total number of batches in training
 
