@@ -18,24 +18,12 @@ import torch.nn as nn
 import plotext as plt
 import torch.nn.functional as F
 
-
 configuration = {
     'load': False,
 
     'print_iteration': 20, # 20
     'save_iteration': 3000
 }
-if 'AMLT_DATA_DIR' in os.environ:
-    configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
-    configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
-else:
-    configuration['train_data'] = '/workspace/data/wikitext-103/wiki.train.tokens'
-    configuration['validation_data'] = '/workspace/data/wikitext-103/wiki.valid.tokens'
-
-if 'AMLT_OUTPUT_DIR' in os.environ:
-    configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
-else:
-    configuration['file_name'] = 'model'
 
 model_configuration = {
     'model_class': models.Model_Experts_Parallel_Compute_Loss,
@@ -62,6 +50,24 @@ training_configuration = {
 tokens_for_experiment = 10 ** 10
 training_configuration['num_training_steps'] = tokens_for_experiment // (model_configuration['n_tokens'] * training_configuration['batch_size'])
 # the total number of batches in training
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--load', default=configuration['load'], action='store_true')
+parser.add_argument('--number_of_splits', default=training_configuration['number_of_splits'], type=int)
+parser.add_argument('--amlt', action='store_true')
+args = parser.parse_args()
+
+configuration['load'] = args.load
+training_configuration['number_of_splits'] = args.number_of_splits
+if args.amlt:
+    configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
+    configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
+    configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
+else:
+    configuration['train_data'] = '/workspace/data/wikitext-103/wiki.train.tokens'
+    configuration['validation_data'] = '/workspace/data/wikitext-103/wiki.valid.tokens'
+    configuration['file_name'] = 'model'
+
 
 def print_input_output(labels, outputs_ids, tokenizer):
     print('---')
@@ -99,14 +105,6 @@ def train():
     
     global model_configuration
     global training_configuration
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--load', default=configuration['load'], action='store_true')
-    parser.add_argument('--number_of_splits', default=training_configuration['number_of_splits'], type=int)
-    args = parser.parse_args()
-
-    configuration['load'] = args.load
-    training_configuration['number_of_splits'] = args.number_of_splits
 
     model, model_configuration, train_conf, tokenizer = models.prepare_model(load=configuration['load'], file_name=configuration['file_name'], model_configuration=model_configuration)
     if train_conf is not None:
