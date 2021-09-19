@@ -309,9 +309,11 @@ class Layer_Experts(nn.Module):
         x_1 = x_1.transpose(-2, -1)
         x_1 = x + self.norm(x_1)
 
-        inputs = torch.chunk(x_1, chunks=self.n_experts, dim=1)
+        inputs = [x_1[:, i::n_experts] for i in range(self.n_experts)]
+        #inputs = torch.chunk(x_1, chunks=self.n_experts, dim=1)
         outputs = [self.experts[i](inputs[i]) for i in range(self.n_experts)]
-        x_1 = torch.cat(outputs, dim=1)
+        x_1 = torch.stack(outputs, dim=2).view_as(x_1)
+        #x_1 = torch.cat(outputs, dim=1)
         
         return x_1
 
