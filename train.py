@@ -96,8 +96,8 @@ def print_accuracy_plot(accuracy_file_name):
             tokens += [x]
             accuracy += [y]
     plt.scatter(tokens, accuracy)
-    plt.figsize(90, 30)
-    plt.nocolor()
+    plt.plotsize(90, 30)
+    plt.colorless()
     plt.show()
 
 def train():
