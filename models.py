@@ -284,18 +284,17 @@ class Expert(nn.Module):
         self.linear_1 = nn.Linear(dimension, 4 * dimension)
         self.linear_2 = nn.Linear(4 * dimension, dimension)
         self.scalar = nn.Parameter(torch.zeros(1))
-        self.layer_norm = nn.LayerNorm(dimension)
+        self.norm = nn.LayerNorm(dimension)
 
     def forward(self, x):
         x_1 = self.linear_2(F.gelu(self.linear_1(x)))
-        x_1 = self.layer_norm(x + x_1 * self.scalar)
+        x_1 = self.norm(x + x_1 * self.scalar)
         return x_1
 
 
 class Layer_Experts(nn.Module):
     def __init__(self, dimension, n_tokens):
         super().__init__()
-        self.n_experts = torch.cuda.device_count()
 
         self.weights = nn.Parameter(torch.zeros(n_tokens).unsqueeze(0).unsqueeze(0))
         self.norm = nn.LayerNorm(dimension)
@@ -309,9 +308,9 @@ class Layer_Experts(nn.Module):
         x_1 = x_1.transpose(-2, -1)
         x_1 = x + self.norm(x_1)
 
-        inputs = [x_1[:, i::n_experts] for i in range(self.n_experts)]
-        #inputs = torch.chunk(x_1, chunks=self.n_experts, dim=1)
-        outputs = [self.experts[i](inputs[i]) for i in range(self.n_experts)]
+        inputs = [x_1[:, i::n_experts] for i in range(n_experts)]
+        #inputs = torch.chunk(x_1, chunks=n_experts, dim=1)
+        outputs = [self.experts[i](inputs[i]) for i in range(n_experts)]
         x_1 = torch.stack(outputs, dim=2).view_as(x_1)
         #x_1 = torch.cat(outputs, dim=1)
         
@@ -373,11 +372,13 @@ class Layer_Experts_Parallel(nn.Module):
     def forward(self, x):
         x = self.mixing(x)
 
-        inputs = torch.chunk(x, chunks=n_experts, dim=1)
+        inputs = [x[:, i::n_experts] for i in range(n_experts)]
+        #inputs = torch.chunk(x, chunks=n_experts, dim=1)
         inputs = [inputs[i].to(devices[i % self.n_devices]) for i in range(n_experts)]
         outputs = [self.experts[i](inputs[i]) for i in range(n_experts)]
         outputs = [output.to(devices[0]) for output in outputs]
-        x = torch.cat(outputs, dim=1)
+        x = torch.stack(outputs, dim=2).view_as(x)
+        #x = torch.cat(outputs, dim=1)
 
         return x
 
