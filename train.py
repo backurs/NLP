@@ -226,4 +226,6 @@ if __name__ == '__main__':
     assert torch.cuda.is_available(), 'GPU is not available'
     print(torch.cuda.device_count(), 'GPU(s) available')
 
-    train()
+    with torch.profiler.profile() as p:
+        train()
+    print(p.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
