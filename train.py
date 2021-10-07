@@ -110,10 +110,7 @@ def train():
     if train_conf is not None:
         training_configuration = train_conf
     optimizer, scheduler, tokens_processed, total_time = models.prepare_optimizer(model, load=configuration['load'], training_configuration=training_configuration, file_name=configuration['file_name'])
-    
-    device = models.devices[0]
-    #model.to(device) #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        
+            
     pprint.pprint({'configuration' : configuration, 'model_configuration' : model_configuration, 'training_configuration' : training_configuration})
     print(f'number of parameters: {models.count_all_parameters(model):,}')
 
@@ -137,7 +134,7 @@ def train():
         os.remove(perplexity_file_name)
 
     running_loss = 0.0
-    running_accuracy = running_number_of_masked_tokens = 0
+    running_accuracy = 0
     number_of_ids = len(encoded_text)
     ids_per_batch = training_configuration['batch_size'] * model_configuration['n_tokens']
     number_of_iterations = number_of_ids // ids_per_batch - 1
@@ -171,17 +168,12 @@ def train():
                 labels = encoded_text[start_position + 1 : end_position + 1].to(models.devices[0])
                 labels = labels.contiguous().view(-1, model_configuration['n_tokens'])
 
-                #outputs = model(inputs)
-                #labels_loss = F.one_hot(labels, model_configuration['vocabulary_size']).float()
-                #loss = - (outputs * labels_loss).sum()
-
                 loss, outputs_ids = model(inputs, labels)
 
                 running_loss += loss.item()
                 loss = loss / ids_per_split
                 loss.backward()
 
-                #outputs_ids = outputs.argmax(dim=-1)
                 running_accuracy += (labels == outputs_ids).sum().item()
 
             optimizer.step()
@@ -226,6 +218,4 @@ if __name__ == '__main__':
     assert torch.cuda.is_available(), 'GPU is not available'
     print(torch.cuda.device_count(), 'GPU(s) available')
 
-    with torch.profiler.profile() as p:
-        train()
-    print(p.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
+    train()
