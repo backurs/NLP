@@ -47,7 +47,7 @@ training_configuration = {
     'learning_rate': 1e-3, # 1e-3
     'num_warmup_steps': 100 # 100
 }
-tokens_for_experiment = 2 * 10 ** 6
+tokens_for_experiment = 10 ** 10
 training_configuration['num_training_steps'] = tokens_for_experiment // (model_configuration['n_tokens'] * training_configuration['batch_size'])
 # the total number of batches in training
 
@@ -185,6 +185,7 @@ def train():
 
                 optimizer.step()
                 scheduler.step()
+                p.step()
 
                 tokens_processed += ids_per_batch
                 if (iteration + 1) % configuration['print_iteration'] == 0:
@@ -220,10 +221,10 @@ def train():
             if done:
                 break
 
+    #print(p.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
 
 if __name__ == '__main__':
     assert torch.cuda.is_available(), 'GPU is not available'
     print(torch.cuda.device_count(), 'GPU(s) available')
 
     train()
-    #print(p.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
