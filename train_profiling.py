@@ -63,10 +63,12 @@ if args.amlt:
     configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
     configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
     configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
+    configuration['profiling_directory'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'profiling')
 else:
     configuration['train_data'] = '/workspace/data/wikitext-103/wiki.train.tokens'
     configuration['validation_data'] = '/workspace/data/wikitext-103/wiki.valid.tokens'
     configuration['file_name'] = 'model'
+    configuration['profiling_directory'] = 'profiling'
 
 
 def print_input_output(labels, outputs_ids, tokenizer):
@@ -142,7 +144,7 @@ def train():
     
     with torch.profiler.profile(
         schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
-        on_trace_ready=torch.profiler.tensorboard_trace_handler('profiling_3'),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(configuration['profiling_directory']),
         record_shapes=True,
         with_stack=True
     ) as p:

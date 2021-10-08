@@ -1,0 +1,36 @@
+description: testing
+
+target:
+  service: amlk8s
+  # run "amlt target list amlk8s" to list the names of available AMLK8s targets
+  name: itphyperdgx2cl1 # ms-share
+  vc: hai7 # resrchvc
+
+environment:
+  image: pytorch/pytorch:1.9.0-cuda10.2-cudnn7-devel
+  registry: docker.io
+  setup:
+    - pip install tensorboard --user
+    - pip install torch_tb_profiler --user
+    - pip install transformers --user
+    - pip install termcolor --user
+    - pip install plotext --user
+
+code:
+  local_dir: $CONFIG_DIR\..
+
+data:
+  local_dir: $CONFIG_DIR\..\..\..\data\wikitext-103-v1\wikitext-103
+  remote_dir: data/wikitext-103
+
+jobs:
+
+- name: multi_gpu
+  sku: G16
+  command:
+  - python train_profiling.py --amlt
+
+#- name: 16gpus
+#  sku: G16
+#  command:
+#  - python train.py
