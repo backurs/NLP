@@ -2,9 +2,7 @@ description: testing
 
 target:
   service: amlk8s
-  # run "amlt target list amlk8s" to list the names of available AMLK8s targets
-  name: itphyperdgx2cl1 # ms-share
-  vc: hai7 # resrchvc
+  name: ms-shared
 
 environment:
   image: pytorch/pytorch:1.9.0-cuda10.2-cudnn7-devel
@@ -29,7 +27,4 @@ jobs:
   command:
   - python train.py --amlt
 
-#- name: 16gpus
-#  sku: G16
-#  command:
-#  - python train.py
+#- name: another_job
