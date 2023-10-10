@@ -26,22 +26,16 @@ configuration = {
 }
 
 model_configuration = {
-    'model_class': models.Model_Experts_Parallel_Compute_Loss,
-    #'model_class': models.Model_Experts_Parallel,
-    #'model_class': models.Model_Experts,
-    #'model_class': models.Model_Attention_Experts,
-    #'model_class': models.Model_Attention_Experts_Standard,
-    #'model_class': models.Model,
-    #'model_class': models.Model_Experts_Standard,
+    'model_class': models.Model,
     'vocabulary_size': 32000, # 32000
     'n_tokens': 64 * 2, # 64 * 2, # 64
-    'number_of_layers': 24, # 36, # 12
+    'number_of_layers': 12, # 36, # 12
     'dimension': 27 * 64, # 768
     'dropout': 0.0
 }
 
 training_configuration = {
-    'batch_size': 64 * 4, # 64
+    'batch_size': 64, # 64
     'number_of_splits': 1, # 1
     'weight_decay': 0.01,
     'learning_rate': 1e-3, # 1e-3
@@ -54,19 +48,14 @@ training_configuration['num_training_steps'] = tokens_for_experiment // (model_c
 parser = argparse.ArgumentParser()
 parser.add_argument('--load', default=configuration['load'], action='store_true')
 parser.add_argument('--number_of_splits', default=training_configuration['number_of_splits'], type=int)
-parser.add_argument('--amlt', action='store_true')
 args = parser.parse_args()
 
 configuration['load'] = args.load
 training_configuration['number_of_splits'] = args.number_of_splits
-if args.amlt:
-    configuration['train_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.train.tokens')
-    configuration['validation_data'] = os.path.join(os.environ['AMLT_DATA_DIR'],'wiki.valid.tokens')
-    configuration['file_name'] = os.path.join(os.environ['AMLT_OUTPUT_DIR'], 'model')
-else:
-    configuration['train_data'] = '/workspace/data/wikitext-103/wiki.train.tokens'
-    configuration['validation_data'] = '/workspace/data/wikitext-103/wiki.valid.tokens'
-    configuration['file_name'] = 'model'
+
+configuration['train_data'] = '../wikitext-103-raw/wiki.train.raw'
+configuration['validation_data'] = '../wikitext-103-raw/wiki.valid.raw'
+configuration['file_name'] = 'model'
 
 
 def print_input_output(labels, outputs_ids, tokenizer):
@@ -107,6 +96,7 @@ def train():
     global training_configuration
 
     model, model_configuration, train_conf, tokenizer = models.prepare_model(load=configuration['load'], file_name=configuration['file_name'], model_configuration=model_configuration)
+    model = model.to(torch.device(0))
     if train_conf is not None:
         training_configuration = train_conf
     optimizer, scheduler, tokens_processed, total_time = models.prepare_optimizer(model, load=configuration['load'], training_configuration=training_configuration, file_name=configuration['file_name'])
@@ -162,18 +152,22 @@ def train():
                 start_position = ids_per_batch * permutation[iteration] + split * ids_per_split + random_shift
                 end_position = start_position + ids_per_split
 
-                inputs = encoded_text[start_position : end_position].to(models.devices[0])
+                inputs = encoded_text[start_position : end_position].to(torch.device(0))
                 inputs = inputs.contiguous().view(-1, model_configuration['n_tokens'])
 
-                labels = encoded_text[start_position + 1 : end_position + 1].to(models.devices[0])
+                labels = encoded_text[start_position + 1 : end_position + 1].to(torch.device(0))
                 labels = labels.contiguous().view(-1, model_configuration['n_tokens'])
 
-                loss, outputs_ids = model(inputs, labels)
+                outputs = model(inputs)
+
+                labels_loss = F.one_hot(labels, model_configuration['vocabulary_size']).float()
+                loss = - (outputs * labels_loss).sum()
 
                 running_loss += loss.item()
                 loss = loss / ids_per_split
                 loss.backward()
 
+                outputs_ids = outputs.argmax(dim=2)
                 running_accuracy += (labels == outputs_ids).sum().item()
 
             optimizer.step()
