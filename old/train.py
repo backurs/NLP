@@ -126,70 +126,85 @@ def train():
     running_loss = 0.0
     running_accuracy = 0
     ids_per_batch = training_configuration['batch_size'] * model_configuration['n_tokens']
-    
-    for iteration in range(training_configuration['num_training_steps']):
-        start_time = timer()
+    number_of_iterations = len(encoded_text) // ids_per_batch - 1
 
-        model.train()
-        optimizer.zero_grad()
+    done = False
+    for epoch in range(100):
+        print('\n\nstarting epoch:', epoch + 1)
 
-        start = random.randint(0, len(encoded_text) - ids_per_batch - 1)
+        permutation = np.random.permutation(number_of_iterations)
 
-        for split in range(training_configuration['number_of_splits']):
-            ids_per_split = ids_per_batch // training_configuration['number_of_splits']
-            start_position = start + split * ids_per_split
-            end_position = start_position + ids_per_split
+        for iteration in range(number_of_iterations):
+            if tokens_processed >= tokens_for_experiment:
+                done = True
+                break
+            
+            start_time = timer()
 
-            inputs = encoded_text[start_position : end_position].to(torch.device(0))
-            inputs = inputs.contiguous().view(-1, model_configuration['n_tokens'])
+            model.train()
+            optimizer.zero_grad()
 
-            labels = encoded_text[start_position + 1 : end_position + 1].to(torch.device(0))
-            labels = labels.contiguous().view(-1, model_configuration['n_tokens'])
+            random_shift = random.randint(0, model_configuration['n_tokens'] - 1)
 
-            outputs = model(inputs)
+            for split in range(training_configuration['number_of_splits']):
+                ids_per_split = ids_per_batch // training_configuration['number_of_splits']
+                start_position = ids_per_batch * permutation[iteration] + split * ids_per_split + random_shift
+                end_position = start_position + ids_per_split
 
-            labels_loss = F.one_hot(labels, model_configuration['vocabulary_size']).float()
-            loss = - (outputs * labels_loss).sum()
+                inputs = encoded_text[start_position : end_position].to(torch.device(0))
+                inputs = inputs.contiguous().view(-1, model_configuration['n_tokens'])
 
-            running_loss += loss.item()
-            loss = loss / ids_per_split
-            loss.backward()
+                labels = encoded_text[start_position + 1 : end_position + 1].to(torch.device(0))
+                labels = labels.contiguous().view(-1, model_configuration['n_tokens'])
 
-            outputs_ids = outputs.argmax(dim=2)
-            running_accuracy += (labels == outputs_ids).sum().item()
+                outputs = model(inputs)
 
-        optimizer.step()
-        scheduler.step()
+                labels_loss = F.one_hot(labels, model_configuration['vocabulary_size']).float()
+                loss = - (outputs * labels_loss).sum()
 
-        tokens_processed += ids_per_batch
-        if (iteration + 1) % configuration['print_iteration'] == 0:
-            ids_per_print = configuration['print_iteration'] * ids_per_batch
+                running_loss += loss.item()
+                loss = loss / ids_per_split
+                loss.backward()
 
-            print('\n[{}]'.format(iteration + 1), flush=True)
-            text = f'accuracy: {running_accuracy}/{ids_per_print} = '
-            text += models.color(f'{100 * running_accuracy / ids_per_print:.5f} %', 'cyan')
-            text += f', loss per token: {running_loss / ids_per_print:.5f}'
-            print(text)
-            memory = [f'{torch.cuda.max_memory_allocated(i) / 2 ** (10 * 3):.5f} GB' for i in range(torch.cuda.device_count())]
-            memory = ', '.join(memory)
-            if torch.cuda.device_count() >= 2:
-                memory = '(' + memory + ')'
-            total_days = (total_time + timer() - experiment_start_time) / (60 * 60 * 24)
-            print('time for the last batch: {:.5f}, memory: {}, lr: {:.7f}, tokens: {:,}, total time: {:.6f} days'.format(timer() - start_time, memory, scheduler.get_last_lr()[0], tokens_processed, total_days))
-            with open(accuracy_file_name, 'a') as accuracy_file:
-                accuracy_file.write(f'{tokens_processed / 10 ** 6:.5f}\t{running_accuracy / ids_per_print:.5f}\n')
-            print_input_output(labels[0], outputs_ids[0], tokenizer)
-            running_loss = 0.0
-            running_accuracy = 0
-        if (iteration + 1) % configuration['save_iteration'] == 0:
-            print_accuracy_plot(accuracy_file_name)
-            perplexity, _ = models.test(model, encoded_validation_text, model_configuration['n_tokens'], 1000, tokens_processed)
-            with open(perplexity_file_name, 'a') as perplexity_file:
-                perplexity_file.write('{:.5f}\t{:.5f}\n'.format(tokens_processed / 10 ** 6, perplexity))
-            time = timer() - experiment_start_time
-            models.save_checkpoint(model, optimizer, scheduler, configuration['file_name'], model_configuration, training_configuration, tokens_processed, total_time + time)
+                outputs_ids = outputs.argmax(dim=2)
+                running_accuracy += (labels == outputs_ids).sum().item()
 
+            optimizer.step()
+            scheduler.step()
 
+            tokens_processed += ids_per_batch
+            if (iteration + 1) % configuration['print_iteration'] == 0:
+                ids_per_print = configuration['print_iteration'] * ids_per_batch
+
+                print('\n[{}, {}]'.format(epoch + 1, iteration + 1), flush=True)
+                text = f'accuracy: {running_accuracy}/{ids_per_print} = '
+                text += models.color(f'{100 * running_accuracy / ids_per_print:.5f} %', 'cyan')
+                text += f', loss per token: {running_loss / ids_per_print:.5f}'
+                print(text)
+                memory = [f'{torch.cuda.max_memory_allocated(i) / 2 ** (10 * 3):.5f} GB' for i in range(torch.cuda.device_count())]
+                memory = ', '.join(memory)
+                if torch.cuda.device_count() >= 2:
+                    memory = '(' + memory + ')'
+                total_days = (total_time + timer() - experiment_start_time) / (60 * 60 * 24)
+                print('time for the last batch: {:.5f}, memory: {}, lr: {:.7f}, tokens: {:,}, total time: {:.6f} days'.format(timer() - start_time, memory, scheduler.get_last_lr()[0], tokens_processed, total_days))
+                with open(accuracy_file_name, 'a') as accuracy_file:
+                    accuracy_file.write(f'{tokens_processed / 10 ** 6:.5f}\t{running_accuracy / ids_per_print:.5f}\n')
+                print_input_output(labels[0], outputs_ids[0], tokenizer)
+                running_loss = 0.0
+                running_accuracy = 0
+            if (iteration + 1) % configuration['save_iteration'] == 0:
+                print_accuracy_plot(accuracy_file_name)
+                perplexity, _ = models.test(model, encoded_validation_text, model_configuration['n_tokens'], 1000, tokens_processed)
+                with open(perplexity_file_name, 'a') as perplexity_file:
+                    perplexity_file.write('{:.5f}\t{:.5f}\n'.format(tokens_processed / 10 ** 6, perplexity))
+                time = timer() - experiment_start_time
+                models.save_checkpoint(model, optimizer, scheduler, configuration['file_name'], model_configuration, training_configuration, tokens_processed, total_time + time)
+                if time / (60 * 60) > 10 ** 10:
+                    done = True
+                    break
+
+        if done:
+            break
 
 
 if __name__ == '__main__':

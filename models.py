@@ -92,7 +92,7 @@ def save_checkpoint(model, optimizer, scheduler, file_name, model_configuration,
     file_name += '.pt'
     time = timer()
     print('saving the model to', file_name)
-    torch.save({'model' : model.state_dict(), 
+    torch.save({'model': model.state_dict(), 
                 'optimizer': optimizer.state_dict(),
                 'scheduler': scheduler.state_dict(),
                 'model_configuration': model_configuration,
@@ -122,11 +122,13 @@ def prepare_model(load, file_name='', model_configuration=None, model_class=None
         
     if model_class is not None:
         model_configuration['model_class'] = model_class
-    model = model_configuration['model_class'](model_configuration['vocabulary_size'],
-                                               model_configuration['number_of_layers'],
-                                               model_configuration['n_tokens'],
-                                               model_configuration['dimension'],
-                                               model_configuration['dropout'])
+    model = model_configuration['model_class'](
+        model_configuration['vocabulary_size'],
+        model_configuration['number_of_layers'],
+        model_configuration['n_tokens'],
+        model_configuration['dimension'],
+        model_configuration['dropout']
+    )
     
     if load:
         model.load_state_dict(checkpoint['model'], strict=strict)    
@@ -140,14 +142,15 @@ def prepare_model(load, file_name='', model_configuration=None, model_class=None
 def test(model, encoded_validation_text, n_tokens, test_length, tokens_processed):
     print('measuring perplexity and accuracy')
 
-    prompt = encoded_validation_text[0 : n_tokens].to(devices[0])
+    prompt = encoded_validation_text[0 : n_tokens].to(torch.device(0))
     perplexity = 0.0
     n_correct = 0
 
     model.eval()
     with torch.no_grad():
         for position in range(test_length):
-            prediction, outputs_ids = model(prompt.unsqueeze(0))
+            prediction = model(prompt.unsqueeze(0))
+            outputs_ids = prediction.argmax(dim=2)
 
             correct_token_id = encoded_validation_text[len(prompt) + position].item()
             perplexity += prediction[0, -1, correct_token_id].item()
